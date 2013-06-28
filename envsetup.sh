@@ -607,9 +607,9 @@ function print_lunch_menu()
     local choice
     for choice in $(echo $choices)
     do
-        echo "     $i. $choice"
+        echo " $i. $choice "
         i=$(($i+1))
-    done
+    done | column
 
     if [ "z${GZOSP_DEVICES_ONLY}" != "z" ]; then
        echo " "
