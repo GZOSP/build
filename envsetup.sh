@@ -1566,6 +1566,18 @@ function godir () {
     \cd $T/$pathname
 }
 
+# Make using all available CPUs
+function mka() {
+    case `uname -s` in
+        Darwin)
+            make -j `sysctl hw.ncpu|cut -d" " -f2` "$@"
+            ;;
+        *)
+            schedtool -B -n 1 -e ionice -n 1 make -j `cat /proc/cpuinfo | grep "^processor" | wc -l` "$@"
+            ;;
+    esac
+}
+
 # Force JAVA_HOME to point to java 1.7/1.8 if it isn't already set.
 function set_java_home() {
     # Clear the existing JAVA_HOME value if we set it ourselves, so that
