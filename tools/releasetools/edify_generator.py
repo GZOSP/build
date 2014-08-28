@@ -148,10 +148,13 @@ class EdifyGenerator(object):
     pass
 
   def AssertSomeBootloader(self, *bootloaders):
-    """Asert that the bootloader version is one of *bootloaders."""
+    """Assert that the bootloader version is one of *bootloaders."""
     cmd = ("assert(" +
            " ||\0".join(['getprop("ro.bootloader") == "%s"' % (b,)
                          for b in bootloaders]) +
+           ' || abort("This package supports bootloader(s): ' +
+           ", ".join(["%s" % (b,) for b in bootloaders]) +
+           '; this device has bootloader " + getprop("ro.bootloader") + ".");' +
            ");")
     self.script.append(self.WordWrap(cmd))
 
