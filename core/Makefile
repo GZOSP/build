@@ -1478,10 +1478,12 @@ define build-recoveryimage-target
   $(if $(filter true,$(BOARD_USES_RECOVERY_AS_BOOT)), \
     $(hide) $(call assert-max-image-size,$(1),$(call get-hash-image-max-size,$(BOARD_BOOTIMAGE_PARTITION_SIZE))), \
     $(hide) $(call assert-max-image-size,$(1),$(call get-hash-image-max-size,$(BOARD_RECOVERYIMAGE_PARTITION_SIZE))))
-  $(if $(filter true,$(BOARD_AVB_ENABLE)), \
-    $(if $(filter true,$(BOARD_USES_RECOVERY_AS_BOOT)), \
-      $(hide) $(AVBTOOL) add_hash_footer --image $(1) --partition_size $(BOARD_BOOTIMAGE_PARTITION_SIZE) --partition_name boot $(INTERNAL_AVB_BOOT_SIGNING_ARGS) $(BOARD_AVB_BOOT_ADD_HASH_FOOTER_ARGS),\
-      $(hide) $(AVBTOOL) add_hash_footer --image $(1) --partition_size $(BOARD_RECOVERYIMAGE_PARTITION_SIZE) --partition_name recovery $(INTERNAL_AVB_RECOVERY_SIGNING_ARGS) $(BOARD_AVB_RECOVERY_ADD_HASH_FOOTER_ARGS)))
+  $(if $(and $(filter true,$(BOARD_USES_RECOVERY_AS_BOOT)),$(filter true,$(BOARD_AVB_ENABLE))), \
+      $(hide) $(AVBTOOL) add_hash_footer \
+        --image $(1) \
+        --partition_size $(BOARD_BOOTIMAGE_PARTITION_SIZE) \
+        --partition_name boot $(INTERNAL_AVB_BOOT_SIGNING_ARGS) \
+        $(BOARD_AVB_BOOT_ADD_HASH_FOOTER_ARGS))
 endef
 
 ADBD := $(TARGET_OUT_EXECUTABLES)/adbd
