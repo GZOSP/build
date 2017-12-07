@@ -431,8 +431,8 @@ def WriteFullOTAPackage(input_zip, output_zip):
   #ts_text = GetBuildProp("ro.build.date", OPTIONS.info_dict)
   #script.AssertOlderBuild(ts, ts_text)
 
-  AppendAssertions(script, OPTIONS.info_dict, oem_dicts)
-  device_specific.FullOTA_Assertions()
+  #AppendAssertions(script, OPTIONS.info_dict, oem_dicts)
+  #device_specific.FullOTA_Assertions()
 
   # Two-step package strategy (in chronological order, which is *not*
   # the order in which the generated script has things):
