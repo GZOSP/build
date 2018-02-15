@@ -109,6 +109,8 @@ $(call add_json_bool, NativeCoverage,                    $(filter true,$(NATIVE_
 $(call add_json_list, CoveragePaths,                     $(COVERAGE_PATHS))
 $(call add_json_list, CoverageExcludePaths,              $(COVERAGE_EXCLUDE_PATHS))
 
+$(call add_json_str,  Target_shim_libs,                  $(subst $(space),:,$(TARGET_LD_SHIM_LIBS)))
+
 $(call add_json_bool, ArtUseReadBarrier,                 $(call invert_bool,$(filter false,$(PRODUCT_ART_USE_READ_BARRIER))))
 $(call add_json_bool, Binder32bit,                       $(BINDER32BIT))
 $(call add_json_bool, Brillo,                            $(BRILLO))
