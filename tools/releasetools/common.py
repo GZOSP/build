@@ -1391,12 +1391,13 @@ def ComputeDifferences(diffs):
 
 class BlockDifference(object):
   def __init__(self, partition, tgt, src=None, check_first_block=False,
-               version=None, disable_imgdiff=False):
+               version=None, disable_imgdiff=False, brotli=True):
     self.tgt = tgt
     self.src = src
     self.partition = partition
     self.check_first_block = check_first_block
     self.disable_imgdiff = disable_imgdiff
+    self.brotli = brotli
 
     if version is None:
       version = 1
@@ -1575,9 +1576,34 @@ class BlockDifference(object):
     ZipWrite(output_zip,
              '{}.transfer.list'.format(self.path),
              '{}.transfer.list'.format(self.partition))
-    ZipWrite(output_zip,
-             '{}.new.dat'.format(self.path),
-             '{}.new.dat'.format(self.partition))
+
+    # For full OTA, compress the new.dat with brotli with quality 6 to reduce its size. Quailty 9
+    # almost triples the compression time but doesn't further reduce the size too much.
+    # For a typical 1.8G system.new.dat
+    #                       zip  | brotli(quality 6)  | brotli(quality 9)
+    #   compressed_size:    942M | 869M (~8% reduced) | 854M
+    #   compression_time:   75s  | 265s               | 719s
+    #   decompression_time: 15s  | 25s                | 25s
+
+    if not self.src and self.brotli:
+      bro_cmd = ['bro', '--quality', '6',
+                 '--input', '{}.new.dat'.format(self.path),
+                 '--output', '{}.new.dat.br'.format(self.path)]
+      print("Compressing {}.new.dat with brotli".format(self.partition))
+      p = Run(bro_cmd, stdout=subprocess.PIPE)
+      p.communicate()
+      assert p.returncode == 0,\
+          'compression of {}.new.dat failed'.format(self.partition)
+
+      new_data_name = '{}.new.dat.br'.format(self.partition)
+      ZipWrite(output_zip,
+               '{}.new.dat.br'.format(self.path),
+               new_data_name,
+               compress_type=zipfile.ZIP_STORED)
+    else:
+      new_data_name = '{}.new.dat'.format(self.partition)
+      ZipWrite(output_zip, '{}.new.dat'.format(self.path), new_data_name)
+
     ZipWrite(output_zip,
              '{}.patch.dat'.format(self.path),
              '{}.patch.dat'.format(self.partition),

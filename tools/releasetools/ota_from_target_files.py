@@ -88,6 +88,9 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
   -e  (--extra_script)  <file>
       Insert the contents of file at the end of the update script.
 
+  --brotli <boolean>
+     Enable (default) or disable usage of brotli
+
   -2  (--two_step)
       Generate a 'two-step' OTA package, where recovery is updated
       first, so that any changes made to the system partition are done
@@ -191,6 +194,7 @@ OPTIONS.extracted_input = None
 OPTIONS.key_passwords = []
 OPTIONS.override_device = 'auto'
 OPTIONS.backuptool = False
+OPTIONS.brotli = True
 
 METADATA_NAME = 'META-INF/com/android/metadata'
 UNZIP_PATTERN = ['IMAGES/*', 'META/*']
@@ -531,7 +535,7 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   # do it.
   system_tgt = GetImage("system", OPTIONS.input_tmp)
   system_tgt.ResetFileMap()
-  system_diff = common.BlockDifference("system", system_tgt, src=None)
+  system_diff = common.BlockDifference("system", system_tgt, src=None, brotli=OPTIONS.brotli)
   system_diff.WriteScript(script, output_zip)
 
   boot_img = common.GetBootableImage(
@@ -542,7 +546,7 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
     vendor_tgt = GetImage("vendor", OPTIONS.input_tmp)
     vendor_tgt.ResetFileMap()
-    vendor_diff = common.BlockDifference("vendor", vendor_tgt)
+    vendor_diff = common.BlockDifference("vendor", vendor_tgt, brotli=OPTIONS.brotli)
     vendor_diff.WriteScript(script, output_zip)
 
   common.CheckSize(boot_img.data, "boot.img", OPTIONS.info_dict)
@@ -724,7 +728,8 @@ def WriteBlockIncrementalOTAPackage(target_zip, source_zip, output_zip):
   system_diff = common.BlockDifference("system", system_tgt, system_src,
                                        check_first_block,
                                        version=blockimgdiff_version,
-                                       disable_imgdiff=disable_imgdiff)
+                                       disable_imgdiff=disable_imgdiff,
+                                       brotli=OPTIONS.brotli)
 
   if HasVendorPartition(target_zip):
     if not HasVendorPartition(source_zip):
@@ -740,7 +745,8 @@ def WriteBlockIncrementalOTAPackage(target_zip, source_zip, output_zip):
     vendor_diff = common.BlockDifference("vendor", vendor_tgt, vendor_src,
                                          check_first_block,
                                          version=blockimgdiff_version,
-                                         disable_imgdiff=disable_imgdiff)
+                                         disable_imgdiff=disable_imgdiff,
+                                         brotli=OPTIONS.brotli)
   else:
     vendor_diff = None
 
@@ -1002,13 +1008,13 @@ def WriteVerifyPackage(input_zip, output_zip):
 
   system_tgt = GetImage("system", OPTIONS.input_tmp)
   system_tgt.ResetFileMap()
-  system_diff = common.BlockDifference("system", system_tgt, src=None)
+  system_diff = common.BlockDifference("system", system_tgt, src=None, brotli=OPTIONS.brotli)
   system_diff.WriteStrictVerifyScript(script)
 
   if HasVendorPartition(input_zip):
     vendor_tgt = GetImage("vendor", OPTIONS.input_tmp)
     vendor_tgt.ResetFileMap()
-    vendor_diff = common.BlockDifference("vendor", vendor_tgt, src=None)
+    vendor_diff = common.BlockDifference("vendor", vendor_tgt, src=None, brotli=OPTIONS.brotli)
     vendor_diff.WriteStrictVerifyScript(script)
 
   # Device specific partitions, such as radio, bootloader and etc.
@@ -1346,6 +1352,8 @@ def main(argv):
       else:
         raise ValueError("Cannot parse value %r for option %r - only "
                          "integers are allowed." % (a, o))
+    elif o in ("--brotli"):
+      OPTIONS.brotli = bool(a.lower() == 'true')
     elif o in ("-2", "--two_step"):
       OPTIONS.two_step = True
     elif o == "--no_signing":
@@ -1395,6 +1403,7 @@ def main(argv):
                                  "override_timestamp",
                                  "extra_script=",
                                  "worker_threads=",
+                                 "brotli=",
                                  "two_step",
                                  "no_signing",
                                  "block",
