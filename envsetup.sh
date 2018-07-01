@@ -450,7 +450,7 @@ function choosevariant()
             export TARGET_BUILD_VARIANT=$default_value
         elif (echo -n $ANSWER | grep -q -e "^[0-9][0-9]*$") ; then
             if [ "$ANSWER" -le "${#VARIANT_CHOICES[@]}" ] ; then
-                export TARGET_BUILD_VARIANT=${VARIANT_CHOICES[$(($ANSWER-1))]}
+                export TARGET_BUILD_VARIANT=${VARIANT_CHOICES[$(($ANSWER-$_arrayoffset))]}
             fi
         else
             if check_variant $ANSWER
@@ -615,7 +615,7 @@ function lunch()
     then
         if [ $answer -le ${#LUNCH_MENU_CHOICES[@]} ]
         then
-            selection=${LUNCH_MENU_CHOICES[$(($answer-1))]}
+            selection=${LUNCH_MENU_CHOICES[$(($answer-$_arrayoffset))]}
         fi
     elif (echo -n $answer | grep -q -e "^[^\-][^\-]*-[^\-][^\-]*$")
     then
@@ -1569,7 +1569,7 @@ function godir () {
                 echo "Invalid choice"
                 continue
             fi
-            pathname=${lines[$(($choice-1))]}
+            pathname=${lines[$(($choice-$_arrayoffset))]}
         done
     else
         pathname=${lines[0]}
@@ -2048,6 +2048,16 @@ if [ "x$SHELL" != "x/bin/bash" ]; then
             ;;
     esac
 fi
+
+# determine whether arrays are zero-based (bash) or one-based (zsh)
+_xarray=(a b c)
+if [ -z "${_xarray[${#_xarray[@]}]}" ]
+then
+    _arrayoffset=1
+else
+    _arrayoffset=0
+fi
+unset _xarray
 
 # Execute the contents of any vendorsetup.sh files we can find.
 for f in `test -d device && find -L device -maxdepth 4 -name 'vendorsetup.sh' 2> /dev/null | sort` \
