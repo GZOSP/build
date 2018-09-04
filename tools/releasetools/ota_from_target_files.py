@@ -821,6 +821,8 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   script.Print("Target: {}".format(target_info.fingerprint))
 
   script.AppendExtra("ifelse(is_mounted(\"/system\"), unmount(\"/system\"));")
+  model = target_info.GetBuildProp("ro.product.model", OPTIONS.info_dict)
+  build = target_info.GetBuildProp("ro.build.date", OPTIONS.info_dict)
   device_specific.FullOTA_InstallBegin()
 
   CopyInstallTools(output_zip)
