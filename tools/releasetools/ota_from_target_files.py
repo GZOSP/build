@@ -17,11 +17,8 @@
 """
 Given a target-files zipfile, produces an OTA package that installs that build.
 An incremental OTA is produced if -i is given, otherwise a full OTA is produced.
-
 Usage:  ota_from_target_files [options] input_target_files output_ota_package
-
 Common options that apply to both of non-A/B and A/B OTAs
-
   --downgrade
       Intentionally generate an incremental OTA that updates from a newer build
       to an older one (e.g. downgrading from P preview back to O MR1).
@@ -30,20 +27,16 @@ Common options that apply to both of non-A/B and A/B OTAs
       be included in the metadata file. The update-binary in the source build
       will be used in the OTA package, unless --binary flag is specified. Please
       also check the comment for --override_timestamp below.
-
   -i  (--incremental_from) <file>
       Generate an incremental OTA using the given target-files zip as the
       starting build.
-
   -k  (--package_key) <key>
       Key to use to sign the package (default is the value of
       default_system_dev_certificate from the input target-files's
       META/misc_info.txt, or "build/make/target/product/security/testkey" if that
       value is not specified).
-
       For incremental OTAs, the default value is based on the source
       target-file, not the target build.
-
   --override_timestamp
       Intentionally generate an incremental OTA that updates from a newer build
       to an older one (based on timestamp comparison), by setting the downgrade
@@ -54,109 +47,85 @@ Common options that apply to both of non-A/B and A/B OTAs
       build C (after having A and B), but want to enfore an update path of A ->
       C -> B. Specifying --downgrade may not help since that would enforce a
       data wipe for C -> B update.
-
       We used to set a fake timestamp in the package metadata for this flow. But
       now we consolidate the two cases (i.e. an actual downgrade, or a downgrade
       based on timestamp) with the same "ota-downgrade=yes" flag, with the
       difference being whether "ota-wipe=yes" is set.
-
   --wipe_user_data
       Generate an OTA package that will wipe the user data partition when
       installed.
-
   --retrofit_dynamic_partitions
       Generates an OTA package that updates a device to support dynamic
       partitions (default False). This flag is implied when generating
       an incremental OTA where the base build does not support dynamic
       partitions but the target build does. For A/B, when this flag is set,
       --skip_postinstall is implied.
-
   --skip_compatibility_check
       Skip adding the compatibility package to the generated OTA package.
-
   --output_metadata_path
       Write a copy of the metadata to a separate file. Therefore, users can
       read the post build fingerprint without extracting the OTA package.
-
 Non-A/B OTA specific options
-
   -b  (--binary) <file>
       Use the given binary as the update-binary in the output package, instead
       of the binary in the build's target_files. Use for development only.
-
   --block
       Generate a block-based OTA for non-A/B device. We have deprecated the
       support for file-based OTA since O. Block-based OTA will be used by
       default for all non-A/B devices. Keeping this flag here to not break
       existing callers.
-
   -e  (--extra_script) <file>
       Insert the contents of file at the end of the update script.
-
   --full_bootloader
       Similar to --full_radio. When generating an incremental OTA, always
       include a full copy of bootloader image.
-
   --full_radio
       When generating an incremental OTA, always include a full copy of radio
       image. This option is only meaningful when -i is specified, because a full
       radio is always included in a full OTA if applicable.
-
   --log_diff <file>
       Generate a log file that shows the differences in the source and target
       builds for an incremental package. This option is only meaningful when -i
       is specified.
-
   -o  (--oem_settings) <main_file[,additional_files...]>
       Comma seperated list of files used to specify the expected OEM-specific
       properties on the OEM partition of the intended device. Multiple expected
       values can be used by providing multiple files. Only the first dict will
       be used to compute fingerprint, while the rest will be used to assert
       OEM-specific properties.
-
   --oem_no_mount
       For devices with OEM-specific properties but without an OEM partition, do
       not mount the OEM partition in the updater-script. This should be very
       rarely used, since it's expected to have a dedicated OEM partition for
       OEM-specific properties. Only meaningful when -o is specified.
-
   --stash_threshold <float>
       Specify the threshold that will be used to compute the maximum allowed
       stash size (defaults to 0.8).
-
   -t  (--worker_threads) <int>
       Specify the number of worker-threads that will be used when generating
       patches for incremental updates (defaults to 3).
-
   --verify
       Verify the checksums of the updated system and vendor (if any) partitions.
       Non-A/B incremental OTAs only.
-
   -2  (--two_step)
       Generate a 'two-step' OTA package, where recovery is updated first, so
       that any changes made to the system partition are done using the new
       recovery (new kernel, etc.).
-
 A/B OTA specific options
-
   --include_secondary
       Additionally include the payload for secondary slot images (default:
       False). Only meaningful when generating A/B OTAs.
-
       By default, an A/B OTA package doesn't contain the images for the
       secondary slot (e.g. system_other.img). Specifying this flag allows
       generating a separate payload that will install secondary slot images.
-
       Such a package needs to be applied in a two-stage manner, with a reboot
       in-between. During the first stage, the updater applies the primary
       payload only. Upon finishing, it reboots the device into the newly updated
       slot. It then continues to install the secondary payload to the inactive
       slot, but without switching the active slot at the end (needs the matching
       support in update_engine, i.e. SWITCH_SLOT_ON_REBOOT flag).
-
       Due to the special install procedure, the secondary payload will be always
       generated as a full payload.
-
   --payload_signer <signer>
       Specify the signer when signing the payload and metadata for A/B OTAs.
       By default (i.e. without this flag), it calls 'openssl pkeyutl' to sign
@@ -164,23 +133,18 @@ A/B OTA specific options
       directly, a payload signer that knows how to do that should be specified.
       The signer will be supplied with "-inkey <path_to_key>",
       "-in <input_file>" and "-out <output_file>" parameters.
-
   --payload_signer_args <args>
       Specify the arguments needed for payload signer.
-
   --payload_signer_key_size <key_size>
       Specify the key size in bytes of the payload signer.
-
   --skip_postinstall
       Skip the postinstall hooks when generating an A/B OTA package (default:
       False). Note that this discards ALL the hooks, including non-optional
       ones. Should only be used if caller knows it's safe to do so (e.g. all the
       postinstall work is to dexopt apps and a data wipe will happen immediately
       after). Only meaningful when generating A/B OTAs.
-
   --override_device <device>
       Override device-specific asserts. Can be a comma-separated list.
-
   --backup <boolean>
       Enable or disable the execution of backuptool.sh.
       Disabled by default.
@@ -261,11 +225,9 @@ SECONDARY_PAYLOAD_SKIPPED_IMAGES = [
 
 class BuildInfo(object):
   """A class that holds the information for a given build.
-
   This class wraps up the property querying for a given source or target build.
   It abstracts away the logic of handling OEM-specific properties, and caches
   the commonly used properties such as fingerprint.
-
   There are two types of info dicts: a) build-time info dict, which is generated
   at build time (i.e. included in a target_files zip); b) OEM info dict that is
   specified at package generation time (via command line argument
@@ -273,10 +235,8 @@ class BuildInfo(object):
   having "oem_fingerprint_properties" in build-time info dict), all the queries
   would be answered based on build-time info dict only. Otherwise if using
   OEM-specific properties, some of them will be calculated from two info dicts.
-
   Users can query properties similarly as using a dict() (e.g. info['fstab']),
   or to query build properties via GetBuildProp() or GetVendorBuildProp().
-
   Attributes:
     info_dict: The build-time info dict.
     is_ab: Whether it's a build that uses A/B OTA.
@@ -290,9 +250,7 @@ class BuildInfo(object):
 
   def __init__(self, info_dict, oem_dicts):
     """Initializes a BuildInfo instance with the given dicts.
-
     Note that it only wraps up the given dicts, without making copies.
-
     Arguments:
       info_dict: The build-time info dict.
       oem_dicts: A list of OEM dicts (which is parsed from --oem_settings). Note
@@ -424,12 +382,10 @@ class BuildInfo(object):
 
 class PayloadSigner(object):
   """A class that wraps the payload signing works.
-
   When generating a Payload, hashes of the payload and metadata files will be
   signed with the device key, either by calling an external payload signer or
   by calling openssl with the package key. This class provides a unified
   interface, so that callers can just call PayloadSigner.Sign().
-
   If an external payload signer has been specified (OPTIONS.payload_signer), it
   calls the signer with the provided args (OPTIONS.payload_signer_args). Note
   that the signing key should be provided as part of the payload_signer_args.
@@ -500,7 +456,6 @@ class Payload(object):
 
   def __init__(self, secondary=False):
     """Initializes a Payload instance.
-
     Args:
       secondary: Whether it's generating a secondary payload (default: False).
     """
@@ -510,7 +465,6 @@ class Payload(object):
 
   def Generate(self, target_file, source_file=None, additional_args=None):
     """Generates a payload from the given target-files zip(s).
-
     Args:
       target_file: The filename of the target build target-files zip.
       source_file: The filename of the source build target-files zip; or None if
@@ -535,10 +489,8 @@ class Payload(object):
 
   def Sign(self, payload_signer):
     """Generates and signs the hashes of the payload and metadata.
-
     Args:
       payload_signer: A PayloadSigner() instance that serves the signing work.
-
     Raises:
       AssertionError: On any failure when calling brillo_update_payload script.
     """
@@ -590,7 +542,6 @@ class Payload(object):
 
   def WriteToZip(self, output_zip):
     """Writes the payload to the given zip.
-
     Args:
       output_zip: The output ZipFile instance.
     """
@@ -635,13 +586,11 @@ def _LoadOemDicts(oem_source):
 
 def _WriteRecoveryImageToBoot(script, output_zip):
   """Find and write recovery image to /boot in two-step OTA.
-
   In two-step OTAs, we write recovery image to /boot as the first step so that
   we can reboot to there and install a new recovery image to /recovery.
   A special "recovery-two-step.img" will be preferred, which encodes the correct
   path of "/boot". Otherwise the device may show "device is corrupt" message
   when booting into /boot.
-
   Fall back to using the regular recovery.img if the two-step recovery image
   doesn't exist. Note that rebuilding the special image at this point may be
   infeasible, because we don't have the desired boot signer and keys when
@@ -721,14 +670,11 @@ def WriteFingerprintAssertion(script, target_info, source_info):
 def AddCompatibilityArchiveIfTrebleEnabled(target_zip, output_zip, target_info,
                                            source_info=None):
   """Adds compatibility info into the output zip if it's Treble-enabled target.
-
   Metadata used for on-device compatibility verification is retrieved from
   target_zip then added to compatibility.zip which is added to the output_zip
   archive.
-
   Compatibility archive should only be included for devices that have enabled
   Treble support.
-
   Args:
     target_zip: Zip file containing the source files to be included for OTA.
     output_zip: Zip file that will be sent for OTA.
@@ -740,7 +686,6 @@ def AddCompatibilityArchiveIfTrebleEnabled(target_zip, output_zip, target_info,
   def AddCompatibilityArchive(framework_updated, device_updated):
     """Adds compatibility info based on update status of both sides of Treble
     boundary.
-
     Args:
       framework_updated: If True, the system / product image will be updated
           and therefore their metadata should be included.
@@ -915,8 +860,6 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   # Dump fingerprints
   script.Print("Target: {}".format(target_info.fingerprint))
-
-  script.AppendExtra("ifelse(is_mounted(\"/system\"), unmount(\"/system\"));")
   device_specific.FullOTA_InstallBegin()
 
   CopyInstallTools(output_zip)
@@ -924,11 +867,13 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   script.SetPermissionsRecursive("/tmp/install", 0, 0, 0755, 0644, None, None)
   script.SetPermissionsRecursive("/tmp/install/bin", 0, 0, 0755, 0755, None, None)
 
-  if OPTIONS.backuptool:
-    script.Mount("/system")
-    script.RunBackup("backup")
-    script.Unmount("/system")
+  if target_info.get("system_root_image") == "true":
+    sysmount = "/"
+  else:
+    sysmount = "/system"
 
+  if OPTIONS.backuptool:
+  script.RunBackup("backup", sysmount)
   system_progress = 0.75
 
   script.Print("**************************************************");
@@ -1001,9 +946,7 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   if OPTIONS.backuptool:
     script.ShowProgress(0.02, 10)
-    script.Mount("/system")
-    script.RunBackup("restore")
-    script.Unmount("/system")
+    script.RunBackup("restore", sysmount)
 
   script.ShowProgress(0.05, 5)
   script.WriteRawImage("/boot", "boot.img")
@@ -1053,7 +996,6 @@ endif;
 
 def WriteMetadata(metadata, output):
   """Writes the metadata to the zip archive or a file.
-
   Args:
     metadata: The metadata dict for the package.
     output: A ZipFile object or a string of the output file path.
@@ -1093,16 +1035,13 @@ def HandleDowngradeMetadata(metadata, target_info, source_info):
 
 def GetPackageMetadata(target_info, source_info=None):
   """Generates and returns the metadata dict.
-
   It generates a dict() that contains the info to be written into an OTA
   package (META-INF/com/android/metadata). It also handles the detection of
   downgrade / data wipe based on the global options.
-
   Args:
     target_info: The BuildInfo instance that holds the target build info.
     source_info: The BuildInfo instance that holds the source build info, or
         None if generating full OTA.
-
   Returns:
     A dict to be written into package metadata entry.
   """
@@ -1152,33 +1091,26 @@ def GetPackageMetadata(target_info, source_info=None):
 
 class PropertyFiles(object):
   """A class that computes the property-files string for an OTA package.
-
   A property-files string is a comma-separated string that contains the
   offset/size info for an OTA package. The entries, which must be ZIP_STORED,
   can be fetched directly with the package URL along with the offset/size info.
   These strings can be used for streaming A/B OTAs, or allowing an updater to
   download package metadata entry directly, without paying the cost of
   downloading entire package.
-
   Computing the final property-files string requires two passes. Because doing
   the whole package signing (with signapk.jar) will possibly reorder the ZIP
   entries, which may in turn invalidate earlier computed ZIP entry offset/size
   values.
-
   This class provides functions to be called for each pass. The general flow is
   as follows.
-
     property_files = PropertyFiles()
     # The first pass, which writes placeholders before doing initial signing.
     property_files.Compute()
     SignOutput()
-
     # The second pass, by replacing the placeholders with actual data.
     property_files.Finalize()
     SignOutput()
-
   And the caller can additionally verify the final result.
-
     property_files.Verify()
   """
 
@@ -1189,13 +1121,10 @@ class PropertyFiles(object):
 
   def Compute(self, input_zip):
     """Computes and returns a property-files string with placeholders.
-
     We reserve extra space for the offset and size of the metadata entry itself,
     although we don't know the final values until the package gets signed.
-
     Args:
       input_zip: The input ZIP file.
-
     Returns:
       A string with placeholders for the metadata offset/size info, e.g.
       "payload.bin:679:343,payload_properties.txt:378:45,metadata:        ".
@@ -1207,24 +1136,20 @@ class PropertyFiles(object):
 
   def Finalize(self, input_zip, reserved_length):
     """Finalizes a property-files string with actual METADATA offset/size info.
-
     The input ZIP file has been signed, with the ZIP entries in the desired
     place (signapk.jar will possibly reorder the ZIP entries). Now we compute
     the ZIP entry offsets and construct the property-files string with actual
     data. Note that during this process, we must pad the property-files string
     to the reserved length, so that the METADATA entry size remains the same.
     Otherwise the entries' offsets and sizes may change again.
-
     Args:
       input_zip: The input ZIP file.
       reserved_length: The reserved length of the property-files string during
           the call to Compute(). The final string must be no more than this
           size.
-
     Returns:
       A property-files string including the metadata offset/size info, e.g.
       "payload.bin:679:343,payload_properties.txt:378:45,metadata:69:379  ".
-
     Raises:
       InsufficientSpaceException: If the reserved length is insufficient to hold
           the final string.
@@ -1240,11 +1165,9 @@ class PropertyFiles(object):
 
   def Verify(self, input_zip, expected):
     """Verifies the input ZIP file contains the expected property-files string.
-
     Args:
       input_zip: The input ZIP file.
       expected: The property-files string that's computed from Finalize().
-
     Raises:
       AssertionError: On finding a mismatch.
     """
@@ -1255,11 +1178,9 @@ class PropertyFiles(object):
   def GetPropertyFilesString(self, zip_file, reserve_space=False):
     """
     Constructs the property-files string per request.
-
     Args:
       zip_file: The input ZIP file.
       reserved_length: The reserved length of the property-files string.
-
     Returns:
       A property-files string including the metadata offset/size info, e.g.
       "payload.bin:679:343,payload_properties.txt:378:45,metadata:     ".
@@ -1297,14 +1218,11 @@ class PropertyFiles(object):
 
   def _GetPrecomputed(self, input_zip):
     """Computes the additional tokens to be included into the property-files.
-
     This applies to tokens without actual ZIP entries, such as
     payload_metadadata.bin. We want to expose the offset/size to updaters, so
     that they can download the payload metadata directly with the info.
-
     Args:
       input_zip: The input zip file.
-
     Returns:
       A list of strings (tokens) to be added to the property-files string.
     """
@@ -1335,13 +1253,11 @@ class StreamingPropertyFiles(PropertyFiles):
 
 class AbOtaPropertyFiles(StreamingPropertyFiles):
   """The property-files for A/B OTA that includes payload_metadata.bin info.
-
   Since P, we expose one more token (aka property-file), in addition to the ones
   for streaming A/B OTA, for a virtual entry of 'payload_metadata.bin'.
   'payload_metadata.bin' is the header part of a payload ('payload.bin'), which
   doesn't exist as a separate ZIP entry, but can be used to verify if the
   payload can be applied on the given device.
-
   For backward compatibility, we keep both of the 'ota-streaming-property-files'
   and the newly added 'ota-property-files' in P. The new token will only be
   available in 'ota-property-files'.
@@ -1358,39 +1274,31 @@ class AbOtaPropertyFiles(StreamingPropertyFiles):
   @staticmethod
   def _GetPayloadMetadataOffsetAndSize(input_zip):
     """Computes the offset and size of the payload metadata for a given package.
-
     (From system/update_engine/update_metadata.proto)
     A delta update file contains all the deltas needed to update a system from
     one specific version to another specific version. The update format is
     represented by this struct pseudocode:
-
     struct delta_update_file {
       char magic[4] = "CrAU";
       uint64 file_format_version;
       uint64 manifest_size;  // Size of protobuf DeltaArchiveManifest
-
       // Only present if format_version > 1:
       uint32 metadata_signature_size;
-
       // The Bzip2 compressed DeltaArchiveManifest
       char manifest[metadata_signature_size];
-
       // The signature of the metadata (from the beginning of the payload up to
       // this location, not including the signature itself). This is a
       // serialized Signatures message.
       char medatada_signature_message[metadata_signature_size];
-
       // Data blobs for files, no specific format. The specific offset
       // and length of each data blob is recorded in the DeltaArchiveManifest.
       struct {
         char data[];
       } blobs[];
-
       // These two are not signed:
       uint64 payload_signatures_message_size;
       char payload_signatures_message[];
     };
-
     'payload-metadata.bin' contains all the bytes from the beginning of the
     payload, till the end of 'medatada_signature_message'.
     """
@@ -1420,7 +1328,6 @@ class AbOtaPropertyFiles(StreamingPropertyFiles):
 
 class NonAbOtaPropertyFiles(PropertyFiles):
   """The property-files for non-A/B OTA.
-
   For non-A/B OTA, the property-files string contains the info for METADATA
   entry, with which a system updater can be fetched the package metadata prior
   to downloading the entire package.
@@ -1433,17 +1340,13 @@ class NonAbOtaPropertyFiles(PropertyFiles):
 
 def FinalizeMetadata(metadata, input_file, output_file, needed_property_files):
   """Finalizes the metadata and signs an A/B OTA package.
-
   In order to stream an A/B OTA package, we need 'ota-streaming-property-files'
   that contains the offsets and sizes for the ZIP entries. An example
   property-files string is as follows.
-
     "payload.bin:679:343,payload_properties.txt:378:45,metadata:69:379"
-
   OTA server can pass down this string, in addition to the package URL, to the
   system update client. System update client can then fetch individual ZIP
   entries (ZIP_STORED) directly at the given offset of the URL.
-
   Args:
     metadata: The metadata dict for the package.
     input_file: The input ZIP filename that doesn't contain the package METADATA
@@ -1847,35 +1750,28 @@ endif;
 
 def GetTargetFilesZipForSecondaryImages(input_file, skip_postinstall=False):
   """Returns a target-files.zip file for generating secondary payload.
-
   Although the original target-files.zip already contains secondary slot
   images (i.e. IMAGES/system_other.img), we need to rename the files to the
   ones without _other suffix. Note that we cannot instead modify the names in
   META/ab_partitions.txt, because there are no matching partitions on device.
-
   For the partitions that don't have secondary images, the ones for primary
   slot will be used. This is to ensure that we always have valid boot, vbmeta,
   bootloader images in the inactive slot.
-
   Args:
     input_file: The input target-files.zip file.
     skip_postinstall: Whether to skip copying the postinstall config file.
-
   Returns:
     The filename of the target-files.zip for generating secondary payload.
   """
 
   def GetInfoForSecondaryImages(info_file):
     """Updates info file for secondary payload generation.
-
     Scan each line in the info file, and remove the unwanted partitions from
     the dynamic partition list in the related properties. e.g.
     "super_google_dynamic_partitions_partition_list=system vendor product"
     will become "super_google_dynamic_partitions_partition_list=system".
-
     Args:
       info_file: The input info file. e.g. misc_info.txt.
-
     Returns:
       A string of the updated info content.
     """
@@ -1954,15 +1850,12 @@ def GetTargetFilesZipForSecondaryImages(input_file, skip_postinstall=False):
 
 def GetTargetFilesZipWithoutPostinstallConfig(input_file):
   """Returns a target-files.zip that's not containing postinstall_config.txt.
-
   This allows brillo_update_payload script to skip writing all the postinstall
   hooks in the generated payload. The input target-files.zip file will be
   duplicated, with 'META/postinstall_config.txt' skipped. If input_file doesn't
   contain the postinstall_config.txt entry, the input file will be returned.
-
   Args:
     input_file: The input target-files.zip filename.
-
   Returns:
     The filename of target-files.zip that doesn't contain postinstall config.
   """
@@ -1981,15 +1874,12 @@ def GetTargetFilesZipForRetrofitDynamicPartitions(input_file,
                                                   super_block_devices,
                                                   dynamic_partition_list):
   """Returns a target-files.zip for retrofitting dynamic partitions.
-
   This allows brillo_update_payload to generate an OTA based on the exact
   bits on the block devices. Postinstall is disabled.
-
   Args:
     input_file: The input target-files.zip filename.
     super_block_devices: The list of super block devices
     dynamic_partition_list: The list of dynamic partitions
-
   Returns:
     The filename of target-files.zip with *.img replaced with super_*.img for
     each block device in super_block_devices.
