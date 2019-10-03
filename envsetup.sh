@@ -615,7 +615,7 @@ function print_lunch_menu()
 
     local i=1
     local choice
-    for choice in $choices
+    for choice in $(echo $choices)
     do
         echo " $i. $choice "
         i=$(($i+1))
