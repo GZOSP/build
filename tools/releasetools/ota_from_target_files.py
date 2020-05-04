@@ -33,8 +33,8 @@ Common options that apply to both of non-A/B and A/B OTAs
   -k  (--package_key) <key>
       Key to use to sign the package (default is the value of
       default_system_dev_certificate from the input target-files's
-      META/misc_info.txt, or "build/make/target/product/security/testkey" if that
-      value is not specified).
+      META/misc_info.txt, or "build/make/target/product/security/testkey" if
+      that value is not specified).
       For incremental OTAs, the default value is based on the source
       target-file, not the target build.
   --override_timestamp
@@ -213,7 +213,7 @@ METADATA_NAME = 'META-INF/com/android/metadata'
 POSTINSTALL_CONFIG = 'META/postinstall_config.txt'
 DYNAMIC_PARTITION_INFO = 'META/dynamic_partitions_info.txt'
 AB_PARTITIONS = 'META/ab_partitions.txt'
-UNZIP_PATTERN = ['IMAGES/*', 'META/*', 'RADIO/*', 'INSTALL/*']
+UNZIP_PATTERN = ['IMAGES/*', 'INSTALL/*', 'META/*', 'RADIO/*']
 RETROFIT_DAP_UNZIP_PATTERN = ['OTA/super_*.img', AB_PARTITIONS]
 
 # Images to be excluded from secondary payload. We essentially only keep
@@ -247,6 +247,12 @@ class BuildInfo(object):
         on OEM properties if applicable.
     device: The device name, which could come from OEM dicts if applicable.
   """
+
+  _RO_PRODUCT_RESOLVE_PROPS = ["ro.product.brand", "ro.product.device",
+                               "ro.product.manufacturer", "ro.product.model",
+                               "ro.product.name"]
+  _RO_PRODUCT_PROPS_DEFAULT_SOURCE_ORDER = ["product", "product_services",
+                                            "odm", "vendor", "system"]
 
   def __init__(self, info_dict, oem_dicts):
     """Initializes a BuildInfo instance with the given dicts.
@@ -326,10 +332,42 @@ class BuildInfo(object):
 
   def GetBuildProp(self, prop):
     """Returns the inquired build property."""
+    if prop in BuildInfo._RO_PRODUCT_RESOLVE_PROPS:
+      return self._ResolveRoProductBuildProp(prop)
+
     try:
       return self.info_dict.get("build.prop", {})[prop]
     except KeyError:
       raise common.ExternalError("couldn't find %s in build.prop" % (prop,))
+
+  def _ResolveRoProductBuildProp(self, prop):
+    """Resolves the inquired ro.product.* build property"""
+    prop_val = self.info_dict.get("build.prop", {}).get(prop)
+    if prop_val:
+      return prop_val
+
+    source_order_val = self.info_dict.get("build.prop", {}).get(
+        "ro.product.property_source_order")
+    if source_order_val:
+      source_order = source_order_val.split(",")
+    else:
+      source_order = BuildInfo._RO_PRODUCT_PROPS_DEFAULT_SOURCE_ORDER
+
+    # Check that all sources in ro.product.property_source_order are valid
+    if any([x not in BuildInfo._RO_PRODUCT_PROPS_DEFAULT_SOURCE_ORDER
+            for x in source_order]):
+      raise common.ExternalError(
+          "Invalid ro.product.property_source_order '{}'".format(source_order))
+
+    for source in source_order:
+      source_prop = prop.replace(
+          "ro.product", "ro.product.{}".format(source), 1)
+      prop_val = self.info_dict.get(
+          "{}.build.prop".format(source), {}).get(source_prop)
+      if prop_val:
+        return prop_val
+
+    raise common.ExternalError("couldn't resolve {}".format(prop))
 
   def GetVendorBuildProp(self, prop):
     """Returns the inquired vendor build property."""
@@ -346,7 +384,18 @@ class BuildInfo(object):
 
   def CalculateFingerprint(self):
     if self.oem_props is None:
-      return self.GetBuildProp("ro.build.fingerprint")
+      try:
+        return self.GetBuildProp("ro.build.fingerprint")
+      except common.ExternalError:
+        return "{}/{}/{}:{}/{}/{}:{}/{}".format(
+            self.GetBuildProp("ro.product.brand"),
+            self.GetBuildProp("ro.product.name"),
+            self.GetBuildProp("ro.product.device"),
+            self.GetBuildProp("ro.build.version.release"),
+            self.GetBuildProp("ro.build.id"),
+            self.GetBuildProp("ro.build.version.incremental"),
+            self.GetBuildProp("ro.build.type"),
+            self.GetBuildProp("ro.build.tags"))
     return "%s/%s/%s:%s" % (
         self.GetOemProperty("ro.product.brand"),
         self.GetOemProperty("ro.product.name"),
@@ -433,7 +482,7 @@ class PayloadSigner(object):
     MODULUS_PREFIX = "Modulus="
     assert modulus_string.startswith(MODULUS_PREFIX)
     modulus_string = modulus_string[len(MODULUS_PREFIX):]
-    key_size = len(modulus_string) / 2
+    key_size = len(modulus_string) // 2
     assert key_size == 256 or key_size == 512, \
         "Unsupported key size {}".format(key_size)
     return key_size
@@ -832,8 +881,8 @@ def WriteFullOTAPackage(input_zip, output_file):
   #    complete script normally
   #    (allow recovery to mark itself finished and reboot)
 
-  # recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
-  #                                        OPTIONS.input_tmp, "RECOVERY")
+  recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
+                                         OPTIONS.input_tmp, "RECOVERY")
   if OPTIONS.two_step:
     if not target_info.get("multistage_support"):
       assert False, "two-step packages not supported by this build"
@@ -848,7 +897,7 @@ if get_stage("%(bcb_dev)s") == "2/3" then
 
     # Stage 2/3: Write recovery image to /recovery (currently running /boot).
     script.Comment("Stage 2/3")
-    # script.WriteRawImage("/recovery", "recovery.img")
+    script.WriteRawImage("/recovery", "recovery.img")
     script.AppendExtra("""
 set_stage("%(bcb_dev)s", "3/3");
 reboot_now("%(bcb_dev)s", "recovery");
@@ -860,12 +909,13 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   # Dump fingerprints
   script.Print("Target: {}".format(target_info.fingerprint))
+
   device_specific.FullOTA_InstallBegin()
 
   CopyInstallTools(output_zip)
   script.UnpackPackageDir("install", "/tmp/install")
-  script.SetPermissionsRecursive("/tmp/install", 0, 0, 0755, 0644, None, None)
-  script.SetPermissionsRecursive("/tmp/install/bin", 0, 0, 0755, 0755, None, None)
+  script.SetPermissionsRecursive("/tmp/install", 0, 0, 0o755, 0o644, None, None)
+  script.SetPermissionsRecursive("/tmp/install/bin", 0, 0, 0o755, 0o755, None, None)
 
   if target_info.get("system_root_image") == "true":
     sysmount = "/"
@@ -873,7 +923,8 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
     sysmount = "/system"
 
   if OPTIONS.backuptool:
-  script.RunBackup("backup", sysmount)
+    script.RunBackup("backup", sysmount)
+
   system_progress = 0.75
 
   script.Print("**************************************************");
@@ -885,10 +936,10 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
   script.Print("   \\ \\____/ /\\_______\\\\ \\_____\\ `\\____\\ \\_\\       ");
   script.Print("    \\/___/  \\/_______/ \\/_____/\\/_____/\\/_/   ");
   script.Print("                                                   ");
-  script.Print("                  Android 10                       ");
+  script.Print("                  AOSP Oreo                        ");
   script.Print("          A Ground Zero Roms Project               ");
   script.Print("***************************************************");
-
+  
   if OPTIONS.wipe_user_data:
     system_progress -= 0.1
   if HasVendorPartition(input_zip):
@@ -936,6 +987,8 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
       block_diff.WriteScript(script, output_zip,
                              progress=progress_dict.get(block_diff.partition),
                              write_verify_script=OPTIONS.verify)
+
+  AddCompatibilityArchiveIfTrebleEnabled(input_zip, output_zip, target_info)
 
   boot_img = common.GetBootableImage(
       "boot.img", "boot.img", OPTIONS.input_tmp, "BOOT")
@@ -1001,7 +1054,7 @@ def WriteMetadata(metadata, output):
     output: A ZipFile object or a string of the output file path.
   """
 
-  value = "".join(["%s=%s\n" % kv for kv in sorted(metadata.iteritems())])
+  value = "".join(["%s=%s\n" % kv for kv in sorted(metadata.items())])
   if isinstance(output, zipfile.ZipFile):
     common.ZipWriteStr(output, METADATA_NAME, value,
                        compress_type=zipfile.ZIP_STORED)
@@ -1017,7 +1070,7 @@ def HandleDowngradeMetadata(metadata, target_info, source_info):
 
   post_timestamp = target_info.GetBuildProp("ro.build.date.utc")
   pre_timestamp = source_info.GetBuildProp("ro.build.date.utc")
-  is_downgrade = long(post_timestamp) < long(pre_timestamp)
+  is_downgrade = int(post_timestamp) < int(pre_timestamp)
 
   if OPTIONS.downgrade:
     if not is_downgrade:
@@ -1308,7 +1361,7 @@ class AbOtaPropertyFiles(StreamingPropertyFiles):
     payload_offset += len(payload_info.extra) + len(payload_info.filename)
     payload_size = payload_info.file_size
 
-    with input_zip.open('payload.bin', 'r') as payload_fp:
+    with input_zip.open('payload.bin') as payload_fp:
       header_bin = payload_fp.read(24)
 
     # network byte order (big-endian)
@@ -1531,6 +1584,9 @@ def WriteBlockIncrementalOTAPackage(target_zip, source_zip, output_file):
                                          disable_imgdiff=disable_imgdiff)
   else:
     vendor_diff = None
+
+  AddCompatibilityArchiveIfTrebleEnabled(
+      target_zip, output_zip, target_info, source_info)
 
   # Assertions (e.g. device properties check).
   target_info.WriteDeviceAssertions(script, OPTIONS.oem_no_mount)
@@ -1802,7 +1858,6 @@ def GetTargetFilesZipForSecondaryImages(input_file, skip_postinstall=False):
 
   with zipfile.ZipFile(input_file, 'r') as input_zip:
     infolist = input_zip.infolist()
-    namelist = input_zip.namelist()
 
   input_tmp = common.UnzipTemp(input_file, UNZIP_PATTERN)
   for info in infolist:
@@ -1892,7 +1947,7 @@ def GetTargetFilesZipForRetrofitDynamicPartitions(input_file,
   target_file = common.MakeTempFile(prefix="targetfiles-", suffix=".zip")
   shutil.copyfile(input_file, target_file)
 
-  with zipfile.ZipFile(input_file, 'r') as input_zip:
+  with zipfile.ZipFile(input_file) as input_zip:
     namelist = input_zip.namelist()
 
   input_tmp = common.UnzipTemp(input_file, RETROFIT_DAP_UNZIP_PATTERN)
@@ -1916,8 +1971,8 @@ def GetTargetFilesZipForRetrofitDynamicPartitions(input_file,
     for partition in ab_partitions:
       if (partition in dynamic_partition_list and
           partition not in super_block_devices):
-          logger.info("Dropping %s from ab_partitions.txt", partition)
-          continue
+        logger.info("Dropping %s from ab_partitions.txt", partition)
+        continue
       f.write(partition + "\n")
   to_delete = [AB_PARTITIONS]
 
@@ -1929,7 +1984,7 @@ def GetTargetFilesZipForRetrofitDynamicPartitions(input_file,
   to_delete += [DYNAMIC_PARTITION_INFO]
 
   # Remove the existing partition images as well as the map files.
-  to_delete += replace.values()
+  to_delete += list(replace.values())
   to_delete += ['IMAGES/{}.map'.format(dev) for dev in super_block_devices]
 
   common.ZipDelete(target_file, to_delete)
@@ -1939,7 +1994,7 @@ def GetTargetFilesZipForRetrofitDynamicPartitions(input_file,
   # Write super_{foo}.img as {foo}.img.
   for src, dst in replace.items():
     assert src in namelist, \
-          'Missing {} in {}; {} cannot be written'.format(src, input_file, dst)
+        'Missing {} in {}; {} cannot be written'.format(src, input_file, dst)
     unzipped_file = os.path.join(input_tmp, *src.split('/'))
     common.ZipWrite(target_zip, unzipped_file, arcname=dst)
 
@@ -2029,6 +2084,9 @@ def WriteABOTAPackageWithBrilloScript(target_file, output_file,
                          compress_type=zipfile.ZIP_STORED)
     else:
       logger.warning("Cannot find care map file in target_file package")
+
+  AddCompatibilityArchiveIfTrebleEnabled(
+      target_zip, output_zip, target_info, source_info)
 
   common.ZipClose(target_zip)
 
@@ -2250,7 +2308,8 @@ def main(argv):
   OPTIONS.cache_size = cache_size
 
   if OPTIONS.extra_script is not None:
-    OPTIONS.extra_script = open(OPTIONS.extra_script).read()
+    with open(OPTIONS.extra_script) as fp:
+      OPTIONS.extra_script = fp.read()
 
   if OPTIONS.extracted_input is not None:
     OPTIONS.input_tmp = OPTIONS.extracted_input
