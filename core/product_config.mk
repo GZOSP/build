@@ -246,6 +246,10 @@ endif
 ifndef PRODUCT_MODEL
   PRODUCT_MODEL := $(PRODUCT_NAME)
 endif
+ifeq ($(PRODUCT_SAFETYNET_MODEL_HACK),true)
+  # There is a U+200B ZERO-WIDTH SPACE character at the end of this line
+  PRODUCT_MODEL := $(PRODUCT_MODEL)​
+endif
 ifndef PRODUCT_SYSTEM_MODEL
   PRODUCT_SYSTEM_MODEL := $(PRODUCT_MODEL)
 endif
