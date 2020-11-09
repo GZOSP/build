@@ -249,6 +249,10 @@ endif
 ifndef PRODUCT_SYSTEM_MODEL
   PRODUCT_SYSTEM_MODEL := $(PRODUCT_MODEL)
 endif
+ifeq ($(PRODUCT_SAFETYNET_MODEL_HACK),true)
+  # We add the property here for future flexibility
+  PRODUCT_PRODUCT_PROPERTIES += ro.product.needs_model_edit=true
+endif
 
 ifndef PRODUCT_MANUFACTURER
   PRODUCT_MANUFACTURER := unknown
